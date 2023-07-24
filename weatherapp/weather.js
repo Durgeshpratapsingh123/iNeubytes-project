@@ -1,66 +1,121 @@
-const apiKey = "70f005e3ee056d49c041342f6c041cea";
-
-const main = document.getElementById('main');
-const form = document.getElementById('form');
-const search = document.getElementById('search');
-
-const url = (city)=> `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}`;
-
-async function getWeatherByLocation(city){
-
-    const resp = await fetch(url(city) ,{
-        origin: "cros"
-    });
-
-    const respData = await resp.json();
-
-    addWeatherToPage(respData);
-}
-
-function addWeatherToPage(data){
-    const temp = Ktoc(data.main.temp);
-
-    const weather = document.createElement('div')
-    weather.classList.add('weather');
-
-    weather.innerHTML=`
-    <h1 ><img src="https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png" style={color: red} /> ${temp}°C <img src="https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png" /></h1>
-    <small>${data.weather[0].main}</small>`;
-
-    main.innerHTML = "";
-    main.appendChild(weather);
-};
-
-function Ktoc(K){
-    return Math.floor(K - 273.15);
-}
-
-form.addEventListener('submit',(e) =>{
-    e.preventDefault();
-    const city = search.value;
-
-    if(city){
-        getWeatherByLocation(city)
+/* Fetching Data from OpenWeatherMap API */
+let weather = {
+    apiKey: "aba6ff9d6de967d5eac6fd79114693cc",
+    fetchWeather: function (city) {
+      fetch(
+        "https://api.openweathermap.org/data/2.5/weather?q=" +
+          city +
+          "&units=metric&appid=" +
+          this.apiKey
+      )
+        .then((response) => {
+          if (!response.ok) {
+            alert("No weather found.");
+            throw new Error("No weather found.");
+          }
+          return response.json();
+        })
+        .then((data) => this.displayWeather(data));
+    },
+    displayWeather: function (data) {
+      const { name } = data;
+      const { icon, description } = data.weather[0];
+      const { temp, humidity } = data.main;
+      const { speed } = data.wind;
+      document.querySelector(".city").innerText = "Weather in " + name;
+      document.querySelector(".icon").src =
+        "https://openweathermap.org/img/wn/" + icon + ".png";
+      document.querySelector(".description").innerText = description;
+      document.querySelector(".temp").innerText = temp + "°C";
+      document.querySelector(".humidity").innerText =
+        "Humidity: " + humidity + "%";
+      document.querySelector(".wind").innerText =
+        "Wind speed: " + speed + " km/h";
+      document.querySelector(".weather").classList.remove("loading");
+      document.body.style.backgroundImage =
+        "url('https://source.unsplash.com/1600x900/?" + name + "')";
+    },
+    search: function () {
+      this.fetchWeather(document.querySelector(".search-bar").value);
+    },
+  };
+  
+  /* Fetching Data from OpenCageData Geocoder */
+  let geocode = {
+    reverseGeocode: function (latitude, longitude) {
+      var apikey = "90a096f90b3e4715b6f2e536d934c5af";
+  
+      var api_url = "https://api.opencagedata.com/geocode/v1/json";
+  
+      var request_url =
+        api_url +
+        "?" +
+        "key=" +
+        apikey +
+        "&q=" +
+        encodeURIComponent(latitude + "," + longitude) +
+        "&pretty=1" +
+        "&no_annotations=1";
+  
+      var request = new XMLHttpRequest();
+      request.open("GET", request_url, true);
+  
+      request.onload = function () {
+  
+        if (request.status == 200) {
+          var data = JSON.parse(request.responseText);
+          weather.fetchWeather(data.results[0].components.city);
+          console.log(data.results[0].components.city)
+        } else if (request.status <= 500) {
+  
+          console.log("unable to geocode! Response code: " + request.status);
+          var data = JSON.parse(request.responseText);
+          console.log("error msg: " + data.status.message);
+        } else {
+          console.log("server error");
+        }
+      };
+  
+      request.onerror = function () {
+        console.log("unable to connect to server");
+      };
+  
+      request.send(); 
+    },
+    getLocation: function() {
+      function success (data) {
+        geocode.reverseGeocode(data.coords.latitude, data.coords.longitude);
+      }
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(success, console.error);
+      }
+      else {
+        weather.fetchWeather("Mau");
+      }
     }
-})
-
-
-
-
-function getCurrentDateTime() {
-    const currentDate = new Date();
-    const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    const timeOptions = { hour: 'numeric', minute: 'numeric', hour12: true };
-    const formattedDate = currentDate.toLocaleDateString('en-US', dateOptions);
-    const formattedTime = currentDate.toLocaleTimeString('en-US', timeOptions);
-    return `${formattedDate} - ${formattedTime}`;
-}
-
-function updateDateTime() {
-    const dateTimeElement = document.getElementById('date-time');
-    dateTimeElement.textContent = getCurrentDateTime();
-}
-
-updateDateTime();
-
-setInterval(updateDateTime, 60000); 
+  };
+  
+  document.querySelector(".search button").addEventListener("click", function () {
+    weather.search();
+  });
+  
+  document
+    .querySelector(".search-bar")
+    .addEventListener("keyup", function (event) {
+      if (event.key == "Enter") {
+        weather.search();
+      }
+    });
+  
+  weather.fetchWeather("Mau");
+  
+  document
+    .querySelector(".search-bar")
+    .addEventListener("keyup", function (event) {
+      if (event.key == "Enter") {
+        weather.search();
+      }
+    });
+  
+  geocode.getLocation();
+  
